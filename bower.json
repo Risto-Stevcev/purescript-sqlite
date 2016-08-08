@@ -1,7 +1,12 @@
 {
   "name": "purescript-sqlite",
+  "homepage": "https://github.com/Risto-Stevcev/purescript-sqlite",
   "description": "An Sqlite wrapper for Purescript",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Risto-Stevcev/purescript-sqlite.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
