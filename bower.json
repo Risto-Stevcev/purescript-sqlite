@@ -1,0 +1,24 @@
+{
+  "name": "purescript-sqlite",
+  "description": "An Sqlite wrapper for Purescript",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "1.x",
+    "purescript-aff": "1.x",
+    "purescript-foreign": "1.x",
+    "purescript-functions": "1.x",
+    "purescript-either": "1.x",
+    "purescript-homogeneous-objects": "2.x"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "1.x",
+    "purescript-test-unit": "9.x",
+    "purescript-spec": "0.8.0",
+    "purescript-template-strings": "2.x"
+  }
+}

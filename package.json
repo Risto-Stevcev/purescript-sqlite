@@ -1,0 +1,30 @@
+{
+  "name": "purescript-sqlite",
+  "version": "0.1.0",
+  "description": "An Sqlite wrapper for Purescript",
+  "main": "",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "sqlite3": "3.x"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "pulp test -m Test.Sqlite.Core && pulp test -m Test.Sqlite.Trans"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Risto-Stevcev/purescript-sqlite.git"
+  },
+  "keywords": [
+    "sqlite",
+    "purescript"
+  ],
+  "author": "Risto Stevcev",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Risto-Stevcev/purescript-sqlite/issues"
+  },
+  "homepage": "https://github.com/Risto-Stevcev/purescript-sqlite#readme"
+}
