@@ -1,6 +1,7 @@
 {
   "name": "purescript-sqlite",
   "description": "An Sqlite wrapper for Purescript",
+  "license": "MIT",
   "ignore": [
     "**/.*",
     "node_modules",
