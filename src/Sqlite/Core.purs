@@ -4,6 +4,7 @@ import Prelude (class Show, Unit, pure, bind, show, ($))
 import Control.Monad.Aff (Aff, attempt)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error, error)
+import Control.Monad.Except (runExcept)
 import Data.Function.Uncurried (Fn3, Fn2, Fn0, runFn3, runFn2, runFn0, mkFn2)
 import Data.Either (Either(..), either)
 import Data.Tuple (Tuple)
@@ -28,7 +29,7 @@ instance strSqlParam :: Primitive String SqlParam where
   mkPrim = SqlString
 
 instance intSqlParam :: Primitive Int SqlParam where
-  mkPrim = SqlInt 
+  mkPrim = SqlInt
 
 instance numSqlParam :: Primitive Number SqlParam where
   mkPrim = SqlNumber
@@ -42,7 +43,7 @@ instance showSqlParam :: Show SqlParam where
   show (SqlNumber n)  = show n
   show (SqlBoolean b) = show b
 
-type SqlParams = Array (Tuple String SqlParam) 
+type SqlParams = Array (Tuple String SqlParam)
 
 type SqlQuery = String
 type SqlRow a  = forall e. IsForeign a => Aff ( sqlite :: SQLITE | e ) (Either Error a)
@@ -56,7 +57,7 @@ setVerbose = runFn0 _setVerbose
 
 connect
   :: forall e
-   . String 
+   . String
   -> DbMode
   -> Aff ( sqlite :: SQLITE | e ) DbConnection
 connect filename mode = runFn3 _connect filename mode false
@@ -75,7 +76,7 @@ close
    . DbConnection
   -> Aff (sqlite :: SQLITE | e) Unit
 close = _close
- 
+
 
 -- | Listener for the database open event
 listen
@@ -105,12 +106,12 @@ get
   -> SqlRows a
 get db query = do
   attempted <- attempt $ runFn2 _get db query
-  pure $ readGet attempted 
+  pure $ readGet attempted
 
   where
     readGet :: Either Error Foreign -> Either Error (Array a)
     readGet (Left err)   = Left err
-    readGet (Right rows) = either (\err -> Left (error $ show err)) Right $ read rows
+    readGet (Right rows) = either (\err -> Left (error $ show err)) Right $ runExcept (read rows)
 
 
 getOne
@@ -121,11 +122,11 @@ getOne
 getOne db query = do
   attempted <- attempt $ runFn2 _getOne db query
   pure $ readGet attempted
- 
+
   where
     readGet :: Either Error Foreign -> Either Error a
     readGet (Left err)   = Left err
-    readGet (Right row) = either (\err -> Left (error $ show err)) Right $ read row
+    readGet (Right row) = either (\err -> Left (error $ show err)) Right $ runExcept (read row)
 
 
 
@@ -136,7 +137,7 @@ stmtPrepare
   -> SqlQuery
   -> Aff ( sqlite :: SQLITE | e ) DbStatement
 stmtPrepare = runFn2 _stmtPrepare
- 
+
 
 stmtBind
   :: forall e
@@ -151,7 +152,7 @@ stmtReset
    . DbStatement
   -> Aff ( sqlite :: SQLITE | e ) DbStatement
 stmtReset = _stmtReset
- 
+
 
 stmtFinalize
   :: forall e
@@ -175,12 +176,12 @@ stmtGet
   -> SqlRows a
 stmtGet stmt query = do
   attempted <- attempt $ runFn2 _stmtGet stmt query
-  pure $ readStmt attempted 
+  pure $ readStmt attempted
 
   where
     readStmt :: Either Error Foreign -> Either Error (Array a)
     readStmt (Left err)   = Left err
-    readStmt (Right rows) = either (\err -> Left (error $ show err)) Right $ read rows
+    readStmt (Right rows) = either (\err -> Left (error $ show err)) Right $ runExcept (read rows)
 
 
 stmtGetOne
@@ -190,12 +191,12 @@ stmtGetOne
   -> SqlRow a
 stmtGetOne stmt query = do
   attempted <- attempt $ runFn2 _stmtGetOne stmt query
-  pure $ readStmt attempted 
+  pure $ readStmt attempted
 
   where
     readStmt :: Either Error Foreign -> Either Error a
     readStmt (Left err)  = Left err
-    readStmt (Right row) = either (\err -> Left (error $ show err)) Right $ read row
+    readStmt (Right row) = either (\err -> Left (error $ show err)) Right $ runExcept (read row)
 
 
 
@@ -210,7 +211,7 @@ foreign import data SQLITE :: !
 -- | due to the underling implementation of Eff functions.
 foreign import data DbListener :: # ! -> *
 
--- | Creates a DbListener from a normal PureScript Eff function for the 
+-- | Creates a DbListener from a normal PureScript Eff function for the
 -- | listen function.
 foreign import _dbListener
   :: forall e a b
@@ -274,7 +275,7 @@ foreign import _stmtPrepare
      SqlQuery
      (Aff ( sqlite :: SQLITE | e ) DbStatement)
 
-foreign import _stmtBind 
+foreign import _stmtBind
   :: forall e
    . Fn2
      DbStatement
@@ -291,7 +292,7 @@ foreign import _stmtFinalize
    . DbStatement
   -> Aff ( sqlite :: SQLITE | e ) Unit
 
-foreign import _stmtRun 
+foreign import _stmtRun
   :: forall e
    . Fn2
      DbStatement

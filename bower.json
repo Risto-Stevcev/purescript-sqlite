@@ -14,17 +14,17 @@
     "output"
   ],
   "dependencies": {
-    "purescript-console": "1.x",
-    "purescript-aff": "1.x",
-    "purescript-foreign": "1.x",
-    "purescript-functions": "1.x",
-    "purescript-either": "1.x",
-    "purescript-homogeneous-objects": "2.x"
+    "purescript-console": "^2.0.0",
+    "purescript-aff": "^2.0.3",
+    "purescript-foreign": "^3.2.0",
+    "purescript-functions": "^2.0.0",
+    "purescript-either": "^2.2.1",
+    "purescript-homogeneous-objects": "^3.0.0",
+    "purescript-transformers": "^2.2.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "1.x",
-    "purescript-test-unit": "9.x",
-    "purescript-spec": "0.8.0",
-    "purescript-template-strings": "2.x"
+    "purescript-psci-support": "^2.0.0",
+    "purescript-test-unit": "^10.1.0",
+    "purescript-template-strings": "^3.0.0"
   }
 }

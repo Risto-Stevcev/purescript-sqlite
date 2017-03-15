@@ -50,7 +50,7 @@ main = runTest do
       liftEff' $ testConnectionListeners db
 
       run db "CREATE TABLE IF NOT EXISTS lorem (info TEXT)"
- 
+
       stmt <- stmtPrepare db "INSERT INTO lorem VALUES ($value)"
 
       liftEff' $ forE 0 10 \i -> do
@@ -63,7 +63,7 @@ main = runTest do
       assert "Rows do not match expected output" $ (either (const []) id rows) == map (\x -> Lorem {info: show x}) [0,1,2,3,4,5,6,7,8,9]
 
       close db
- 
+
     test "failed connect" do
       failDb <- attempt $ connect "someNonexistentFile" ReadOnly
       assert "Db connection failed" $ (isLeft failDb) == true
