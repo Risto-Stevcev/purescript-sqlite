@@ -2,6 +2,13 @@
 
 [![Latest release](http://img.shields.io/bower/v/purescript-sqlite.svg)](https://github.com/Risto-Stevcev/purescript-sqlite/releases)
 
+## Installation
+
+```
+bower install purescript-sqlite
+
+npm install sqlite3
+```
 
 ## Example
 

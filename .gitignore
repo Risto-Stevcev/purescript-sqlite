@@ -7,3 +7,4 @@
 *.tix
 pursuit.json*
 Session.vim
+.psc-ide-port

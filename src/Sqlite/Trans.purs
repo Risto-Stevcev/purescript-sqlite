@@ -1,12 +1,13 @@
 module Sqlite.Trans where
 
-import Prelude (Unit, pure, bind, ($), (>>=))
+import Sqlite.Core
 import Control.Monad.Aff (Aff, attempt)
 import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Except.Trans (ExceptT(..))
 import Data.Either (Either(..))
 import Data.Foreign.Class (class IsForeign)
-import Sqlite.Core
+import Data.Maybe (Maybe)
+import Prelude (Unit, bind, pure, ($))
 
 type SqlRowT a  = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) a
 type SqlRowsT a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Array a)
@@ -23,10 +24,10 @@ valueToRight x = do
 
 connectT
   :: forall e
-   . String 
+   . String
   -> DbMode
-  -> ExceptT Error (Aff ( sqlite :: SQLITE | e )) DbConnection
-connectT filename mode = ExceptT (attempt $ connect filename mode) 
+  -> ExceptT Error (Aff (sqlite :: SQLITE | e)) DbConnection
+connectT filename mode = ExceptT (attempt $ connect filename mode)
 
 connectCachedT
   :: forall e
@@ -45,7 +46,7 @@ runT
   :: forall e
    . DbConnection
   -> SqlQuery
-  -> ExceptT Error (Aff ( sqlite :: SQLITE | e )) Unit 
+  -> ExceptT Error (Aff (sqlite :: SQLITE | e)) RunResult
 runT db query = ExceptT (attempt $ run db query)
 
 getT
@@ -53,14 +54,15 @@ getT
    . DbConnection
   -> SqlQuery
   -> SqlRowsT a
-getT db query = ExceptT (get db query)
+getT db query = ExceptT $ attempt $ get db query
 
 getOneT
   :: forall a
    . DbConnection
   -> SqlQuery
-  -> SqlRowT a
-getOneT db query = ExceptT (getOne db query)
+  -> SqlRowT (Maybe a)
+getOneT db query = ExceptT $ attempt $ getOne db query
+
 
 stmtPrepareT
   :: forall e
@@ -79,7 +81,7 @@ stmtBindT stmt params = ExceptT (attempt $ stmtBind stmt params)
 stmtResetT
   :: forall e
    . DbStatement
-  -> ExceptT Error (Aff ( sqlite :: SQLITE | e )) DbStatement
+  -> ExceptT Error (Aff (sqlite :: SQLITE | e)) Unit
 stmtResetT db = ExceptT (valueToRight $ stmtReset db)
 
 stmtFinalizeT
@@ -92,7 +94,7 @@ stmtRunT
   :: forall e
    . DbStatement
   -> SqlParams
-  -> ExceptT Error (Aff ( sqlite :: SQLITE | e )) Unit
+  -> ExceptT Error (Aff (sqlite :: SQLITE | e)) RunResult
 stmtRunT stmt params = ExceptT (attempt $ stmtRun stmt params)
 
 stmtGetT
@@ -100,11 +102,11 @@ stmtGetT
    . DbStatement
   -> SqlParams
   -> SqlRowsT a
-stmtGetT stmt query = ExceptT (stmtGet stmt query)
+stmtGetT stmt query = ExceptT $ attempt $ stmtGet stmt query
 
 stmtGetOneT
   :: forall a
    . DbStatement
   -> SqlParams
-  -> SqlRowT a
-stmtGetOneT stmt query = ExceptT (stmtGetOne stmt query)
+  -> SqlRowT (Maybe a)
+stmtGetOneT stmt query = ExceptT $ attempt $ stmtGetOne stmt query
