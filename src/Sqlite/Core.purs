@@ -2,7 +2,7 @@ module Sqlite.Core where
 
 import Prelude
 import Data.Int.Bits as Bits
-import Control.Monad.Aff (Aff, makeAff)
+import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Error.Class (throwError)
@@ -10,7 +10,7 @@ import Control.Monad.Except (runExcept)
 import Data.Either (either)
 import Data.Foreign (Foreign)
 import Data.Foreign.Class (class IsForeign, read)
-import Data.Function.Uncurried (Fn2, Fn3, Fn4, Fn5, mkFn2, runFn2, runFn3, runFn4, runFn5)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.HObject.Primitive (class Primitive)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Nullable (Nullable, toMaybe)
@@ -63,7 +63,7 @@ instance showSqlParam :: Show SqlParam where
 type SqlParams = Array (Tuple String SqlParam)
 
 type SqlQuery = String
-type SqlRow  a = forall e. IsForeign a => Aff (sqlite :: SQLITE | e) a
+type SqlRow  a = forall e. IsForeign a => Aff (sqlite :: SQLITE | e) (Maybe a)
 type SqlRows a = forall e. IsForeign a => Aff (sqlite :: SQLITE | e) (Array a)
 
 
@@ -77,7 +77,7 @@ connect
    . String
   -> DbMode
   -> Aff (sqlite :: SQLITE | e) DbConnection
-connect filename dbMode = makeAff $ runFn5 _connect filename mode false
+connect filename dbMode = runFn3 _connect filename mode true
   where
   mode = modeToInt dbMode
 
@@ -87,7 +87,7 @@ connectCached
    . String
   -> DbMode
   -> Aff (sqlite :: SQLITE | e) DbConnection
-connectCached filename dbMode = makeAff $ runFn5 _connect filename mode true
+connectCached filename dbMode = runFn3 _connect filename mode true
   where
   mode = modeToInt dbMode
 
@@ -96,9 +96,7 @@ close
   :: forall e
    . DbConnection
   -> Aff (sqlite :: SQLITE | e) Unit
-close db = makeAff _close'
-  where
-  _close' onError onSuccess = runFn3 _close db onError $ onSuccess unit
+close = _close
 
 
 -- | "lastID" result value should be used only for INSERT queries,
@@ -111,7 +109,7 @@ run
    . DbConnection
   -> SqlQuery
   -> Aff (sqlite :: SQLITE | e) RunResult
-run db query = makeAff $ runFn4 _run db query
+run = runFn2 _run
 
 
 readRow :: forall a e. IsForeign a => Foreign -> Aff (sqlite :: SQLITE | e) a
@@ -122,10 +120,10 @@ getOne
   :: forall a
    . DbConnection
   -> SqlQuery
-  -> SqlRow (Maybe a)
+  -> SqlRow a
 getOne db query = do
-  row <- toMaybe <$> (makeAff $ runFn4 _getOne db query)
-  maybe (pure Nothing) readRow row
+  row <- toMaybe <$> (runFn2 _getOne db query)
+  maybe (pure Nothing) (map Just <<< readRow) row
 
 
 get
@@ -134,7 +132,7 @@ get
   -> SqlQuery
   -> SqlRows a
 get db query = do
-  rows <- makeAff $ runFn4 _get db query
+  rows <- runFn2 _get db query
   sequence $ readRow <$> rows
 
 
@@ -143,7 +141,7 @@ stmtPrepare
    . DbConnection
   -> SqlQuery
   -> Aff (sqlite :: SQLITE | e) DbStatement
-stmtPrepare db query = makeAff $ runFn4 _stmtPrepare db query
+stmtPrepare = runFn2 _stmtPrepare
 
 
 stmtBind
@@ -151,27 +149,21 @@ stmtBind
    . DbStatement
   -> SqlParams
   -> Aff (sqlite :: SQLITE | e) Unit
-stmtBind db query = makeAff bind
-  where
-  bind onError onSuccess = runFn4 _stmtBind db query onError $ onSuccess unit
+stmtBind = runFn2 _stmtBind
 
 
 stmtReset
   :: forall e
    . DbStatement
   -> Aff (sqlite :: SQLITE | e) Unit
-stmtReset stmt = makeAff _stmtReset'
-  where
-  _stmtReset' onError onSuccess = runFn2 _stmtReset stmt $ onSuccess unit
+stmtReset = _stmtReset
 
 
 stmtFinalize
   :: forall e
    . DbStatement
   -> Aff (sqlite :: SQLITE | e) Unit
-stmtFinalize stmt = makeAff _stmtFinalize'
-  where
-  _stmtFinalize' onError onSuccess = runFn2 _stmtFinalize stmt $ onSuccess unit
+stmtFinalize = _stmtFinalize
 
 
 stmtRun
@@ -179,17 +171,17 @@ stmtRun
    . DbStatement
   -> SqlParams
   -> Aff ( sqlite :: SQLITE | e ) RunResult
-stmtRun stmt params = makeAff $ runFn4 _stmtRun stmt params
+stmtRun = runFn2 _stmtRun
 
 
 stmtGetOne
   :: forall a
    . DbStatement
   -> SqlParams
-  -> SqlRow (Maybe a)
+  -> SqlRow a
 stmtGetOne stmt query = do
-  row <- toMaybe <$> (makeAff $ runFn4 _stmtGetOne stmt query)
-  maybe (pure Nothing) readRow row
+  row <- toMaybe <$> (runFn2 _stmtGetOne stmt query)
+  maybe (pure Nothing) (map Just <<< readRow) row
 
 
 stmtGet
@@ -198,7 +190,7 @@ stmtGet
   -> SqlParams
   -> SqlRows a
 stmtGet stmt query = do
-  rows <- makeAff $ runFn4 _stmtGet stmt query
+  rows <- runFn2 _stmtGet stmt query
   sequence $ readRow <$> rows
 
 
@@ -242,108 +234,83 @@ foreign import _setVerbose :: forall e. Eff (sqlite :: SQLITE | e) Unit
 
 foreign import _connect
   :: forall e
-   . Fn5
+   . Fn3
      String
      Int
      Boolean
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (DbConnection -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) DbConnection)
 
 foreign import _close
   :: forall e
-   . Fn3
-     DbConnection
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+   . DbConnection
+  -> (Aff (sqlite :: SQLITE | e) Unit)
 
 foreign import _run
   :: forall e
-   . Fn4
+   . Fn2
      DbConnection
      SqlQuery
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (RunResult -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) RunResult)
 
 foreign import _getOne
   :: forall e
-   . Fn4
+   . Fn2
      DbConnection
      SqlQuery
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (Nullable Foreign -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff ( sqlite :: SQLITE | e ) Unit)
+     (Aff (sqlite :: SQLITE | e) (Nullable Foreign))
 
 foreign import _get
   :: forall e
-   . Fn4
+   . Fn2
      DbConnection
      SqlQuery
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (Array Foreign -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff ( sqlite :: SQLITE | e ) Unit)
+     (Aff (sqlite :: SQLITE | e) (Array Foreign))
 
 
 foreign import _stmtPrepare
   :: forall e
-   . Fn4
+   . Fn2
      DbConnection
      SqlQuery
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (DbStatement -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) DbStatement)
 
 foreign import _stmtBind
   :: forall e
-   . Fn4
+   . Fn2
      DbStatement
      SqlParams
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) Unit)
 
 foreign import _stmtReset
   :: forall e
-   . Fn2
-     DbStatement
-     (Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+   . DbStatement
+  -> (Aff (sqlite :: SQLITE | e) Unit)
 
 foreign import _stmtFinalize
   :: forall e
-   . Fn2
-     DbStatement
-     (Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+   . DbStatement
+  -> (Aff (sqlite :: SQLITE | e) Unit)
 
 foreign import _stmtRun
   :: forall e
-   . Fn4
+   . Fn2
      DbStatement
      SqlParams
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (RunResult -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) RunResult)
 
 foreign import _stmtGetOne
   :: forall e
-   . Fn4
+   . Fn2
      DbStatement
      SqlParams
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (Nullable Foreign -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) (Nullable Foreign))
 
 foreign import _stmtGet
   :: forall e
-   . Fn4
+   . Fn2
      DbStatement
      SqlParams
-     (Error -> Eff (sqlite :: SQLITE | e) Unit)
-     (Array Foreign -> Eff (sqlite :: SQLITE | e) Unit)
-     (Eff (sqlite :: SQLITE | e) Unit)
+     (Aff (sqlite :: SQLITE | e) (Array Foreign))
 
 
 foreign import _listen

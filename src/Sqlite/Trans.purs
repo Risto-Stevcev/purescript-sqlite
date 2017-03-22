@@ -9,7 +9,7 @@ import Data.Foreign.Class (class IsForeign)
 import Data.Maybe (Maybe)
 import Prelude (Unit, bind, pure, ($))
 
-type SqlRowT a  = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) a
+type SqlRowT  a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Maybe a)
 type SqlRowsT a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Array a)
 
 

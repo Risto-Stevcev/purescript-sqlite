@@ -22,7 +22,8 @@
     "purescript-homogeneous-objects": "^3.0.0",
     "purescript-transformers": "^2.2.0",
     "purescript-integers": "^2.1.1",
-    "purescript-nullable": "^2.0.0"
+    "purescript-nullable": "^2.0.0",
+    "purescript-maybe": "^2.1.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0",
