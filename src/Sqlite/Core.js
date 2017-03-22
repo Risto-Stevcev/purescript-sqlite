@@ -69,7 +69,7 @@ exports._getOne = function(db, query) {
         error(err);
       }
       else {
-        success(row === undefined ? null : row);
+        success(row);
       }
     });
   }
@@ -149,7 +149,7 @@ exports._stmtGetOne = function(stmt, params) {
         error(err);
       }
       else {
-        success(row === undefined ? null : row);
+        success(row);
       }
     });
   }

@@ -13,7 +13,7 @@ import Data.Foreign.Class (class IsForeign, read)
 import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.HObject.Primitive (class Primitive)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Nullable (Nullable, toMaybe)
+import Data.Undefinable (Undefinable, toMaybe)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple)
 
@@ -257,7 +257,7 @@ foreign import _getOne
    . Fn2
      DbConnection
      SqlQuery
-     (Aff (sqlite :: SQLITE | e) (Nullable Foreign))
+     (Aff (sqlite :: SQLITE | e) (Undefinable Foreign))
 
 foreign import _get
   :: forall e
@@ -303,7 +303,7 @@ foreign import _stmtGetOne
    . Fn2
      DbStatement
      SqlParams
-     (Aff (sqlite :: SQLITE | e) (Nullable Foreign))
+     (Aff (sqlite :: SQLITE | e) (Undefinable Foreign))
 
 foreign import _stmtGet
   :: forall e
