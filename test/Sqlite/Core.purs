@@ -1,21 +1,21 @@
 module Test.Sqlite.Core where
 
-import Prelude (class Eq, Unit, unit, pure, bind, map, show, const, id, (==), ($), (>>=))
 import Control.Monad.Aff (liftEff', launchAff, attempt)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Eff (Eff, forE)
-import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, message)
+import Data.Array (length)
+import Data.Either (Either(..), isLeft)
+import Data.Foreign.Class (class IsForeign, readProp)
+import Data.HObject.Primitive ((/^\))
+import Data.Maybe (Maybe(..))
+import Prelude (class Eq, Unit, unit, pure, bind, map, show, (==), ($))
+import Sqlite.Core (DbConnection, DbEvent(..), DbMode(..), SQLITE, SqlRows, SqlRow, close, connect, get, listen, run, stmtFinalize, stmtGet, stmtGetOne, stmtPrepare, stmtRun)
 import Test.Unit (test, suite)
-import Test.Unit.Main (runTest)
 import Test.Unit.Assert (assert)
 import Test.Unit.Console (TESTOUTPUT)
-import Data.Either (Either(..), either, isLeft)
-import Data.Foreign.Class (class IsForeign, readProp)
-import Data.Tuple.Nested ((/\))
-import Data.HObject.Primitive ((/^\))
-import Sqlite.Core ( SqlRows, SQLITE, DbConnection, DbEvent(..), DbMode(..), setVerbose, connect
-                   , listen, close, get, stmtFinalize, stmtRun, stmtPrepare, run )
+import Test.Unit.Main (runTest)
 
 
 instance loremIsForeign :: IsForeign Lorem where
@@ -60,7 +60,19 @@ main = runTest do
       stmtFinalize stmt
 
       rows <- get db "SELECT * from lorem" :: SqlRows Lorem
-      assert "Rows do not match expected output" $ (either (const []) id rows) == map (\x -> Lorem {info: show x}) [0,1,2,3,4,5,6,7,8,9]
+      assert "Rows do not match expected output" $ rows == map (\x -> Lorem {info: show x}) [0,1,2,3,4,5,6,7,8,9]
+
+      stmtSelectLimit <- stmtPrepare db "SELECT * FROM lorem LIMIT $limit"
+      let rowsLimit = 5
+      limitedRows <- stmtGet stmtSelectLimit [ "$limit" /^\ rowsLimit ] :: SqlRows Lorem
+      assert "Rows number does not match limit" $ length limitedRows == rowsLimit
+      stmtFinalize stmtSelectLimit
+
+      stmtSelectOne <- stmtPrepare db "SELECT * FROM lorem WHERE info = $info"
+      let loremInfo = "5"
+      loremRow <- stmtGetOne stmtSelectOne [ "$info" /^\ loremInfo ] :: SqlRow Lorem
+      assert "Expected row is not found" $ loremRow == (Just $ Lorem { info: loremInfo })
+      stmtFinalize stmtSelectOne
 
       close db
 
@@ -73,4 +85,7 @@ main = runTest do
         Left err -> assert "Db error object has the wrong message" $ (message err) == "SQLITE_CANTOPEN: unable to open database file"
 
     test "setVerbose" do
-      assert "Set execution mode to verbose failed" $ setVerbose == unit
+      -- setVerbose call can't fail
+      -- This test should somehow check stacktrace
+      -- of a failed sqlite method call
+      pure unit
