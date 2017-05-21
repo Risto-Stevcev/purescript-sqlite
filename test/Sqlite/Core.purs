@@ -7,21 +7,23 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, message)
 import Data.Array (length)
 import Data.Either (Either(..), isLeft)
-import Data.Foreign.Class (class IsForeign, readProp)
+import Data.Foreign (F, Foreign, readString)
+import Data.Foreign.Index (readProp)
 import Data.HObject.Primitive ((/^\))
 import Data.Maybe (Maybe(..))
-import Prelude (class Eq, Unit, unit, pure, bind, map, show, (==), ($))
-import Sqlite.Core (DbConnection, DbEvent(..), DbMode(..), SQLITE, SqlRows, SqlRow, close, connect, get, listen, run, stmtFinalize, stmtGet, stmtGetOne, stmtPrepare, stmtRun)
+import Prelude (class Eq, Unit, bind, discard, map, pure, show, unit, ($), (=<<), (==))
+import Sqlite.Core (DbConnection, DbEvent(..), DbMode(..), SQLITE, close, connect, get, listen, run, stmtFinalize, stmtGet, stmtGetOne, stmtPrepare, stmtRun)
 import Test.Unit (test, suite)
 import Test.Unit.Assert (assert)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 
 
-instance loremIsForeign :: IsForeign Lorem where
-  read obj = do
-    n <- readProp "info" obj
-    pure $ Lorem { info: n }
+
+readLorem :: Foreign -> F Lorem
+readLorem obj = do
+  n <- readString =<< readProp "info" obj
+  pure $ Lorem { info: n }
 
 instance loremEq :: Eq Lorem where
   eq (Lorem a) (Lorem b) = a.info == b.info
@@ -32,11 +34,11 @@ data Lorem = Lorem { info :: String }
 testConnectionListeners
   :: forall e
    . DbConnection
-  -> Eff ( err :: EXCEPTION, console :: CONSOLE | e ) Unit
+  -> Eff ( exception :: EXCEPTION, console :: CONSOLE | e ) Unit
 testConnectionListeners db = do
-  listen db (Open  (\_ -> launchAff $ assert "Db listener 'open' called" true))
-  listen db (Close (\_ -> launchAff $ assert "Db listener 'close' called" true))
-  listen db (Error (\err -> launchAff $ assert (message err) false))
+  _ <- listen db (Open  (\_ -> launchAff $ assert "Db listener 'open' called" true))
+  _ <- listen db (Close (\_ -> launchAff $ assert "Db listener 'close' called" true))
+  _ <- listen db (Error (\err -> launchAff $ assert (message err) false))
   --listen db (Trace (\str -> log str))
   --listen db (Profile (\str time -> log $ "(" <> show time <> "ms) " <> str))
   pure unit
@@ -47,30 +49,30 @@ main = runTest do
   suite "Sqlite.Core" do
     test "functionality" do
       db <- connect ":memory:" ReadWriteCreate
-      liftEff' $ testConnectionListeners db
+      _ <- liftEff' $ testConnectionListeners db
 
-      run db "CREATE TABLE IF NOT EXISTS lorem (info TEXT)"
+      _ <- run db "CREATE TABLE IF NOT EXISTS lorem (info TEXT)"
 
       stmt <- stmtPrepare db "INSERT INTO lorem VALUES ($value)"
 
-      liftEff' $ forE 0 10 \i -> do
-        launchAff $ stmtRun stmt [ "$value" /^\ i ]
+      _ <- liftEff' $ forE 0 10 \i -> do
+        _ <- launchAff $ stmtRun stmt [ "$value" /^\ i ]
         pure unit
 
       stmtFinalize stmt
 
-      rows <- get db "SELECT * from lorem" :: SqlRows Lorem
+      rows <- get db "SELECT * from lorem" readLorem
       assert "Rows do not match expected output" $ rows == map (\x -> Lorem {info: show x}) [0,1,2,3,4,5,6,7,8,9]
 
       stmtSelectLimit <- stmtPrepare db "SELECT * FROM lorem LIMIT $limit"
       let rowsLimit = 5
-      limitedRows <- stmtGet stmtSelectLimit [ "$limit" /^\ rowsLimit ] :: SqlRows Lorem
+      limitedRows <- stmtGet stmtSelectLimit [ "$limit" /^\ rowsLimit ] readLorem
       assert "Rows number does not match limit" $ length limitedRows == rowsLimit
       stmtFinalize stmtSelectLimit
 
       stmtSelectOne <- stmtPrepare db "SELECT * FROM lorem WHERE info = $info"
       let loremInfo = "5"
-      loremRow <- stmtGetOne stmtSelectOne [ "$info" /^\ loremInfo ] :: SqlRow Lorem
+      loremRow <- stmtGetOne stmtSelectOne [ "$info" /^\ loremInfo ] readLorem
       assert "Expected row is not found" $ loremRow == (Just $ Lorem { info: loremInfo })
       stmtFinalize stmtSelectOne
 

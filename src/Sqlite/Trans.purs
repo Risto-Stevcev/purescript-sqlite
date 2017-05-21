@@ -5,12 +5,11 @@ import Control.Monad.Aff (Aff, attempt)
 import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Except.Trans (ExceptT(..))
 import Data.Either (Either(..))
-import Data.Foreign.Class (class IsForeign)
 import Data.Maybe (Maybe)
 import Prelude (Unit, bind, pure, ($))
 
-type SqlRowT  a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Maybe a)
-type SqlRowsT a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Array a)
+type SqlRowT  a = forall e. ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Maybe a)
+type SqlRowsT a = forall e. ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Array a)
 
 
 valueToRight
@@ -53,15 +52,17 @@ getT
   :: forall a
    . DbConnection
   -> SqlQuery
+  -> SqlRowReader a
   -> SqlRowsT a
-getT db query = ExceptT $ attempt $ get db query
+getT db query read = ExceptT $ attempt $ get db query read
 
 getOneT
   :: forall a
    . DbConnection
   -> SqlQuery
-  -> SqlRowT (Maybe a)
-getOneT db query = ExceptT $ attempt $ getOne db query
+  -> SqlRowReader a
+  -> SqlRowT a
+getOneT db query read = ExceptT $ attempt $ getOne db query read
 
 
 stmtPrepareT
@@ -101,12 +102,14 @@ stmtGetT
   :: forall a
    . DbStatement
   -> SqlParams
+  -> SqlRowReader a
   -> SqlRowsT a
-stmtGetT stmt query = ExceptT $ attempt $ stmtGet stmt query
+stmtGetT stmt query read = ExceptT $ attempt $ stmtGet stmt query read
 
 stmtGetOneT
   :: forall a
    . DbStatement
   -> SqlParams
-  -> SqlRowT (Maybe a)
-stmtGetOneT stmt query = ExceptT $ attempt $ stmtGetOne stmt query
+  -> SqlRowReader a
+  -> SqlRowT a
+stmtGetOneT stmt query read = ExceptT $ attempt $ stmtGetOne stmt query read

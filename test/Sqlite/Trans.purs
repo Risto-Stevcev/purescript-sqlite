@@ -1,27 +1,26 @@
 module Test.Sqlite.Trans where
 
-import Prelude (class Eq, Unit, unit, pure, bind, (==), ($))
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (message)
+import Control.Monad.Except.Trans (runExceptT)
+import Data.Either (Either(..))
+import Data.Foreign (F, Foreign, readString)
+import Data.Foreign.Index (readProp)
+import Prelude (class Eq, Unit, bind, discard, pure, unit, ($), (<>), (=<<), (==))
+import Sqlite.Core (SQLITE, DbMode(ReadWriteCreate))
+import Sqlite.Trans (closeT, getT, runT, connectT)
 import Test.Unit (test, suite)
-import Test.Unit.Main (runTest)
 import Test.Unit.Assert (assert)
 import Test.Unit.Console (TESTOUTPUT)
-import Sqlite.Trans (SqlRowsT, closeT, getT, runT, connectT)
-import Sqlite.Core (SQLITE, DbMode(ReadWriteCreate))
-import Data.Either (Either(..))
-import Data.Foreign.Class (class IsForeign, readProp)
-import Data.Tuple.Nested ((/\))
-import Data.TemplateString ((<->))
-import Control.Monad.Except.Trans (runExceptT)
+import Test.Unit.Main (runTest)
 
 
-instance loremIsForeign :: IsForeign Lorem where
-  read obj = do
-    n <- readProp "info" obj
-    pure $ Lorem { info: n }
+readLorem :: Foreign -> F Lorem
+readLorem obj = do
+  n <- readString =<< readProp "info" obj
+  pure $ Lorem { info: n }
 
 instance loremEq :: Eq Lorem where
   eq (Lorem a) (Lorem b) = a.info == b.info
@@ -32,16 +31,17 @@ main :: forall e. Eff ( avar :: AVAR, console :: CONSOLE, testOutput :: TESTOUTP
 main = runTest do
   suite "Sqlite.Trans" do
     test "functionality" do
+      let infoValue = "fooish!"
       assert "true" true
       result <- runExceptT $ do
         db <- connectT ":memory:" ReadWriteCreate
-        runT db "CREATE TABLE IF NOT EXISTS lorem (info TEXT)"
-        runT db ("INSERT INTO lorem VALUES (${value})" <-> [ "value" /\ "fooish!" ])
-        rows <- getT db "SELECT * from lorem" :: SqlRowsT Lorem
+        _ <- runT db "CREATE TABLE IF NOT EXISTS lorem (info TEXT)"
+        _ <- runT db ("INSERT INTO lorem VALUES (\"" <> infoValue <> "\")")
+        rows <- getT db "SELECT * from lorem" readLorem
         closeT db
         pure rows
 
       case result of
-        Right rows@[Lorem _] -> assert "gets the rows that are populated" $ rows == [Lorem {info: "fooish!"}]
+        Right rows@[Lorem _] -> assert "gets the rows that are populated" $ rows == [Lorem {info: infoValue}]
         Right _  -> pure unit
         Left err -> assert (message err) false
