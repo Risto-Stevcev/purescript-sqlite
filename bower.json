@@ -14,9 +14,15 @@
     "output"
   ],
   "dependencies": {
-    "purescript-undefinable": "aykl/purescript-undefinable#master",
-    "purescript-homogeneous-objects": "aykl/purescript-homogeneous-objects#master",
-    "purescript-aff": "^3.1.0"
+    "purescript-aff": "^3.1.0",
+    "purescript-foreign": "^4.0.0",
+    "purescript-functions": "^3.0.0",
+    "purescript-either": "^3.0.0",
+    "purescript-homogeneous-objects": "Risto-Stevcev/purescript-homogeneous-objects#master",
+    "purescript-transformers": "^3.3.0",
+    "purescript-integers": "^3.0.0",
+    "purescript-maybe": "^3.0.0",
+    "purescript-undefinable": "^3.0.0"
   },
   "devDependencies": {
     "purescript-test-unit": "^11.0.0"
