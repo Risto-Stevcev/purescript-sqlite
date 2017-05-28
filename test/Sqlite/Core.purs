@@ -7,12 +7,12 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, message)
 import Data.Array (length)
 import Data.Either (Either(..), isLeft)
-import Data.Foreign (F, Foreign, readString)
+import Data.Foreign.Class (class Decode, decode)
 import Data.Foreign.Index (readProp)
 import Data.HObject.Primitive ((/^\))
 import Data.Maybe (Maybe(..))
 import Prelude (class Eq, Unit, bind, discard, map, pure, show, unit, ($), (=<<), (==))
-import Sqlite.Core (DbConnection, DbEvent(..), DbMode(..), SQLITE, close, connect, get, listen, run, stmtFinalize, stmtGet, stmtGetOne, stmtPrepare, stmtRun)
+import Sqlite.Core (DbConnection, DbEvent(..), DbMode(..), SQLITE, SqlRows, close, connect, get, listen, run, stmtFinalize, stmtGet, stmtGetOne, stmtPrepare, stmtRun)
 import Test.Unit (test, suite)
 import Test.Unit.Assert (assert)
 import Test.Unit.Console (TESTOUTPUT)
@@ -20,10 +20,10 @@ import Test.Unit.Main (runTest)
 
 
 
-readLorem :: Foreign -> F Lorem
-readLorem obj = do
-  n <- readString =<< readProp "info" obj
-  pure $ Lorem { info: n }
+instance decodeLorem :: Decode Lorem where
+  decode obj = do
+    n <- decode =<< readProp "info" obj
+    pure $ Lorem { info: n }
 
 instance loremEq :: Eq Lorem where
   eq (Lorem a) (Lorem b) = a.info == b.info
@@ -61,18 +61,18 @@ main = runTest do
 
       stmtFinalize stmt
 
-      rows <- get db "SELECT * from lorem" readLorem
+      rows <- get db "SELECT * from lorem"
       assert "Rows do not match expected output" $ rows == map (\x -> Lorem {info: show x}) [0,1,2,3,4,5,6,7,8,9]
 
       stmtSelectLimit <- stmtPrepare db "SELECT * FROM lorem LIMIT $limit"
       let rowsLimit = 5
-      limitedRows <- stmtGet stmtSelectLimit [ "$limit" /^\ rowsLimit ] readLorem
+      limitedRows <- stmtGet stmtSelectLimit [ "$limit" /^\ rowsLimit ] :: SqlRows Lorem
       assert "Rows number does not match limit" $ length limitedRows == rowsLimit
       stmtFinalize stmtSelectLimit
 
       stmtSelectOne <- stmtPrepare db "SELECT * FROM lorem WHERE info = $info"
       let loremInfo = "5"
-      loremRow <- stmtGetOne stmtSelectOne [ "$info" /^\ loremInfo ] readLorem
+      loremRow <- stmtGetOne stmtSelectOne [ "$info" /^\ loremInfo ]
       assert "Expected row is not found" $ loremRow == (Just $ Lorem { info: loremInfo })
       stmtFinalize stmtSelectOne
 

@@ -8,12 +8,13 @@ import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Data.Either (either)
-import Data.Foreign (Foreign, F)
+import Data.Foreign (Foreign)
+import Data.Foreign.Class (class Decode, decode)
 import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.HObject.Primitive (class Primitive)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe)
 import Data.Undefinable (Undefinable, toMaybe)
-import Data.Traversable (sequence)
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple)
 
 
@@ -62,9 +63,8 @@ instance showSqlParam :: Show SqlParam where
 type SqlParams = Array (Tuple String SqlParam)
 
 type SqlQuery = String
-type SqlRow  a = forall e. Aff (sqlite :: SQLITE | e) (Maybe a)
-type SqlRows a = forall e. Aff (sqlite :: SQLITE | e) (Array a)
-type SqlRowReader a = Foreign -> F a
+type SqlRow  a = forall e. Decode a => Aff (sqlite :: SQLITE | e) (Maybe a)
+type SqlRows a = forall e. Decode a => Aff (sqlite :: SQLITE | e) (Array a)
 
 
 -- | Sets the debug mode for sqlite to verbose
@@ -112,30 +112,28 @@ run
 run = runFn2 _run
 
 
-readRow :: forall a e. SqlRowReader a -> Foreign -> Aff (sqlite :: SQLITE | e) a
-readRow read = read >>> runExcept >>> either (show >>> error >>> throwError) pure
+readRow :: forall a e. Decode a => Foreign -> Aff (sqlite :: SQLITE | e) a
+readRow = decode >>> runExcept >>> either (show >>> error >>> throwError) pure
 
 
 getOne
   :: forall a
    . DbConnection
   -> SqlQuery
-  -> SqlRowReader a
   -> SqlRow a
-getOne db query read = do
+getOne db query = do
   row <- toMaybe <$> (runFn2 _getOne db query)
-  maybe (pure Nothing) (map Just <<< readRow read) row
+  traverse readRow row
 
 
 get
   :: forall a
    . DbConnection
   -> SqlQuery
-  -> SqlRowReader a
   -> SqlRows a
-get db query read = do
+get db query = do
   rows <- runFn2 _get db query
-  sequence $ readRow read <$> rows
+  traverse readRow rows
 
 
 stmtPrepare
@@ -180,22 +178,20 @@ stmtGetOne
   :: forall a
    . DbStatement
   -> SqlParams
-  -> SqlRowReader a
   -> SqlRow a
-stmtGetOne stmt query read = do
+stmtGetOne stmt query = do
   row <- toMaybe <$> (runFn2 _stmtGetOne stmt query)
-  maybe (pure Nothing) (map Just <<< readRow read) row
+  traverse readRow row
 
 
 stmtGet
   :: forall a
    . DbStatement
   -> SqlParams
-  -> SqlRowReader a
   -> SqlRows a
-stmtGet stmt query read = do
+stmtGet stmt query = do
   rows <- runFn2 _stmtGet stmt query
-  sequence $ readRow read <$> rows
+  traverse readRow rows
 
 
 -- | Listener for the database open event

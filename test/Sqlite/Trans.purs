@@ -6,7 +6,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (message)
 import Control.Monad.Except.Trans (runExceptT)
 import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, readString)
+import Data.Foreign.Class (class Decode, decode)
 import Data.Foreign.Index (readProp)
 import Prelude (class Eq, Unit, bind, discard, pure, unit, ($), (<>), (=<<), (==))
 import Sqlite.Core (SQLITE, DbMode(ReadWriteCreate))
@@ -17,10 +17,10 @@ import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 
 
-readLorem :: Foreign -> F Lorem
-readLorem obj = do
-  n <- readString =<< readProp "info" obj
-  pure $ Lorem { info: n }
+instance decodeLorem :: Decode Lorem where
+  decode obj = do
+    n <- decode =<< readProp "info" obj
+    pure $ Lorem { info: n }
 
 instance loremEq :: Eq Lorem where
   eq (Lorem a) (Lorem b) = a.info == b.info
@@ -37,7 +37,7 @@ main = runTest do
         db <- connectT ":memory:" ReadWriteCreate
         _ <- runT db "CREATE TABLE IF NOT EXISTS lorem (info TEXT)"
         _ <- runT db ("INSERT INTO lorem VALUES (\"" <> infoValue <> "\")")
-        rows <- getT db "SELECT * from lorem" readLorem
+        rows <- getT db "SELECT * from lorem"
         closeT db
         pure rows
 
