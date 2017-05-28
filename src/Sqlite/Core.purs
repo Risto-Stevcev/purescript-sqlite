@@ -3,18 +3,18 @@ module Sqlite.Core where
 import Prelude
 import Data.Int.Bits as Bits
 import Control.Monad.Aff (Aff)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Data.Either (either)
 import Data.Foreign (Foreign)
-import Data.Foreign.Class (class IsForeign, read)
+import Data.Foreign.Class (class Decode, decode)
 import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.HObject.Primitive (class Primitive)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe)
 import Data.Undefinable (Undefinable, toMaybe)
-import Data.Traversable (sequence)
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple)
 
 
@@ -63,8 +63,8 @@ instance showSqlParam :: Show SqlParam where
 type SqlParams = Array (Tuple String SqlParam)
 
 type SqlQuery = String
-type SqlRow  a = forall e. IsForeign a => Aff (sqlite :: SQLITE | e) (Maybe a)
-type SqlRows a = forall e. IsForeign a => Aff (sqlite :: SQLITE | e) (Array a)
+type SqlRow  a = forall e. Decode a => Aff (sqlite :: SQLITE | e) (Maybe a)
+type SqlRows a = forall e. Decode a => Aff (sqlite :: SQLITE | e) (Array a)
 
 
 -- | Sets the debug mode for sqlite to verbose
@@ -112,8 +112,8 @@ run
 run = runFn2 _run
 
 
-readRow :: forall a e. IsForeign a => Foreign -> Aff (sqlite :: SQLITE | e) a
-readRow = read >>> runExcept >>> either (show >>> error >>> throwError) pure
+readRow :: forall a e. Decode a => Foreign -> Aff (sqlite :: SQLITE | e) a
+readRow = decode >>> runExcept >>> either (show >>> error >>> throwError) pure
 
 
 getOne
@@ -123,7 +123,7 @@ getOne
   -> SqlRow a
 getOne db query = do
   row <- toMaybe <$> (runFn2 _getOne db query)
-  maybe (pure Nothing) (map Just <<< readRow) row
+  traverse readRow row
 
 
 get
@@ -133,7 +133,7 @@ get
   -> SqlRows a
 get db query = do
   rows <- runFn2 _get db query
-  sequence $ readRow <$> rows
+  traverse readRow rows
 
 
 stmtPrepare
@@ -181,7 +181,7 @@ stmtGetOne
   -> SqlRow a
 stmtGetOne stmt query = do
   row <- toMaybe <$> (runFn2 _stmtGetOne stmt query)
-  maybe (pure Nothing) (map Just <<< readRow) row
+  traverse readRow row
 
 
 stmtGet
@@ -191,7 +191,7 @@ stmtGet
   -> SqlRows a
 stmtGet stmt query = do
   rows <- runFn2 _stmtGet stmt query
-  sequence $ readRow <$> rows
+  traverse readRow rows
 
 
 -- | Listener for the database open event
@@ -207,15 +207,15 @@ listen db (Trace callback)   = runFn3 _listen db "trace"   (_dbListener callback
 listen db (Profile callback) = runFn3 _listen db "profile" (_dbListenerFn2 $ mkFn2 callback)
 
 
-foreign import data DbStatement :: *
+foreign import data DbStatement :: Type
 
-foreign import data DbConnection :: *
+foreign import data DbConnection :: Type
 
-foreign import data SQLITE :: !
+foreign import data SQLITE :: Effect
 
 -- | A boxed function that can be used as a listener. This is necessary
 -- | due to the underling implementation of Eff functions.
-foreign import data DbListener :: # ! -> *
+foreign import data DbListener :: # Effect -> Type
 
 -- | Creates a DbListener from a normal PureScript Eff function for the
 -- | listen function.

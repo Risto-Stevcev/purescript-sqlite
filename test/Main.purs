@@ -1,6 +1,6 @@
 module Test.Main where
 
-import Prelude (bind, Unit)
+import Prelude (discard, Unit)
 import Sqlite.Core (SQLITE)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)

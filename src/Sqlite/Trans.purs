@@ -5,12 +5,12 @@ import Control.Monad.Aff (Aff, attempt)
 import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Except.Trans (ExceptT(..))
 import Data.Either (Either(..))
-import Data.Foreign.Class (class IsForeign)
+import Data.Foreign.Class (class Decode)
 import Data.Maybe (Maybe)
 import Prelude (Unit, bind, pure, ($))
 
-type SqlRowT  a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Maybe a)
-type SqlRowsT a = forall e. IsForeign a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Array a)
+type SqlRowT  a = forall e. Decode a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Maybe a)
+type SqlRowsT a = forall e. Decode a => ExceptT Error (Aff ( sqlite :: SQLITE | e )) (Array a)
 
 
 valueToRight
@@ -60,7 +60,7 @@ getOneT
   :: forall a
    . DbConnection
   -> SqlQuery
-  -> SqlRowT (Maybe a)
+  -> SqlRowT a
 getOneT db query = ExceptT $ attempt $ getOne db query
 
 
@@ -108,5 +108,5 @@ stmtGetOneT
   :: forall a
    . DbStatement
   -> SqlParams
-  -> SqlRowT (Maybe a)
+  -> SqlRowT a
 stmtGetOneT stmt query = ExceptT $ attempt $ stmtGetOne stmt query
